@@ -19,13 +19,14 @@ alerts:
   gc-pause-critical-ms: 200
 
 analysis:
-  track-slowest-ticks: true
-  track-chunks: true
-  track-entities: true
-  track-players: true
   baseline-enabled: true
   baseline-min-samples: 50
 
 profiler:
   enabled: true
   top-plugins-display: 15
+
+web:
+  enabled: true
+  port: 8123
+  bind-address: "127.0.0.1"
