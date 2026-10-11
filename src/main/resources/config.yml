@@ -1,0 +1,36 @@
+# ═══════════════════════════════════════════════════════
+#     ServerGuardX v3.0 — Legendary Diagnostic Suite
+#     ZERO IMPACT ON SERVER PERFORMANCE
+# ═══════════════════════════════════════════════════════
+
+monitor:
+  enabled: true
+  sample-interval-seconds: 30
+  tick-history-size: 1200
+
+logging:
+  enabled: true
+  file: "logs/serverguardx.log"
+  max-file-size-mb: 10
+  max-backups: 5
+
+alerts:
+  discord-webhook: ""
+  mspt-warning: 60.0
+  mspt-critical: 100.0
+  consecutive-ticks-before-alert: 40
+  alert-cooldown-seconds: 120
+  gc-pause-warning-ms: 50
+  gc-pause-critical-ms: 200
+
+analysis:
+  track-slowest-ticks: true
+  track-chunks: true
+  track-entities: true
+  track-players: true
+  baseline-enabled: true
+  baseline-min-samples: 50
+
+profiler:
+  enabled: true
+  top-plugins-display: 15
