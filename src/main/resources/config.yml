@@ -1,8 +1,3 @@
-# ═══════════════════════════════════════════════════════
-#     ServerGuardX v3.0 — Legendary Diagnostic Suite
-#     ZERO IMPACT ON SERVER PERFORMANCE
-# ═══════════════════════════════════════════════════════
-
 monitor:
   enabled: true
   sample-interval-seconds: 30
