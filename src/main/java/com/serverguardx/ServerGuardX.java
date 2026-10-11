@@ -9,6 +9,7 @@ import com.serverguardx.log.GuardLogger;
 import com.serverguardx.notify.DiscordNotifier;
 import com.serverguardx.profiler.GCMonitor;
 import com.serverguardx.profiler.PluginProfiler;
+import com.serverguardx.web.WebDashboard;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -24,6 +25,7 @@ public class ServerGuardX extends JavaPlugin {
     private BaselineTracker baseline;
     private PluginProfiler pluginProfiler;
     private GCMonitor gcMonitor;
+    private WebDashboard webDashboard;
 
     @Override
     public void onEnable() {
@@ -45,6 +47,15 @@ public class ServerGuardX extends JavaPlugin {
         pluginProfiler.start();
         gcMonitor.start();
 
+        if (getConfig().getBoolean("web.enabled", true)) {
+            try {
+                this.webDashboard = new WebDashboard(this);
+                webDashboard.start();
+            } catch (Throwable e) {
+                getLogger().warning("Web dashboard failed: " + e.getMessage());
+            }
+        }
+
         var cmd = getCommand("sg");
         if (cmd != null) {
             GuardCommand gc = new GuardCommand(this);
@@ -62,6 +73,7 @@ public class ServerGuardX extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (webDashboard != null) webDashboard.stop();
         if (pluginProfiler != null) pluginProfiler.stop();
         if (gcMonitor != null) gcMonitor.stop();
         if (tickProfiler != null) tickProfiler.stop();
