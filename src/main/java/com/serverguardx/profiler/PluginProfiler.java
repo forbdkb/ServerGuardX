@@ -18,7 +18,7 @@ public class PluginProfiler {
 
     public void start() {
         task = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin,
-                this::snapshot, 1200L, 1200L);
+                this::snapshot, 200L, 200L);
     }
 
     public void stop() { if (task != null) task.cancel(); }
@@ -35,24 +35,53 @@ public class PluginProfiler {
         }
     }
 
+    /**
+     * تقرير عن كل بلوقن
+     * - عدد المهام المجدولة (تقريبي)
+     * - الحالة
+     * - الترتيب حسب الاسم
+     */
     public List<PluginReport> getReports() {
         List<PluginReport> reports = new ArrayList<>();
+
         for (Plugin p : Bukkit.getPluginManager().getPlugins()) {
-            PluginMetrics m = metrics.get(p.getName());
             PluginReport r = new PluginReport();
             r.name = p.getName();
             r.version = p.getDescription().getVersion();
             r.enabled = p.isEnabled();
-            if (m != null) {
+
+            // عدد المهام المجدولة (نستخدم Bukkit scheduler)
+            try {
+                // نحسب المهام عن طريق worker
+                int taskCount = 0;
+                for (BukkitTask t : Bukkit.getScheduler().getPendingTasks()) {
+                    if (t.getOwner() != null && t.getOwner().equals(p)) {
+                        taskCount++;
+                    }
+                }
+                r.activeTasks = taskCount;
+            } catch (Throwable ignored) {
+                r.activeTasks = -1;
+            }
+
+            // إذا في قياسات فعلية استخدمها
+            PluginMetrics m = metrics.get(p.getName());
+            if (m != null && !m.samples.isEmpty()) {
                 r.avgMspt = m.avgMs;
                 r.maxMspt = m.maxMs;
                 r.p95Mspt = m.p95Ms;
                 r.totalCalls = m.totalCalls;
-                r.samples = m.samples.size();
             }
+
             reports.add(r);
         }
-        reports.sort((a, b) -> Double.compare(b.avgMspt, a.avgMspt));
+
+        // رتب: شغال أولاً، ثم حسب اسم أبجدي
+        reports.sort((a, b) -> {
+            if (a.enabled != b.enabled) return a.enabled ? -1 : 1;
+            return a.name.compareToIgnoreCase(b.name);
+        });
+
         return reports;
     }
 
@@ -65,6 +94,14 @@ public class PluginProfiler {
         double sum = 0;
         for (PluginMetrics m : metrics.values()) sum += m.avgMs;
         return sum;
+    }
+
+    public int getEnabledPluginCount() {
+        int count = 0;
+        for (Plugin p : Bukkit.getPluginManager().getPlugins()) {
+            if (p.isEnabled()) count++;
+        }
+        return count;
     }
 
     private static class PluginMetrics {
@@ -100,6 +137,6 @@ public class PluginProfiler {
         public boolean enabled;
         public double avgMspt, maxMspt, p95Mspt;
         public long totalCalls;
-        public int samples;
+        public int activeTasks;
     }
 }
