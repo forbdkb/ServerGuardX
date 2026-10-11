@@ -1,0 +1,19 @@
+name: ServerGuardX
+version: '${project.version}'
+main: com.serverguardx.ServerGuardX
+api-version: '1.21'
+authors: [forbdkb]
+description: Legendary Minecraft server diagnostic suite
+website: https://github.com/forbdkb/ServerGuardX
+commands:
+  sg:
+    description: ServerGuardX diagnostic commands
+    usage: /sg help
+    aliases: [guard, lag, sgx]
+permissions:
+  serverguardx.use:
+    description: Basic command access
+    default: op
+  serverguardx.admin:
+    description: Full admin access
+    default: op
