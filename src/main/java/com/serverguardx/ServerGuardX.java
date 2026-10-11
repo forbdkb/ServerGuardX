@@ -57,7 +57,7 @@ public class ServerGuardX extends JavaPlugin {
                     "** enabled on `" + Bukkit.getServer().getName() + "`");
         }
 
-        getLogger().info("✓ All systems online");
+        getLogger().info("All systems online");
     }
 
     @Override
@@ -73,14 +73,14 @@ public class ServerGuardX extends JavaPlugin {
     private void printBanner() {
         String[] lines = {
             "",
-            "§8╔════════════════════════════════════════════════════════════╗",
-            "§8║                                                            ║",
-            "§8║   §6§l⚡ §e§lS E R V E R §6§lG U A R D §e§lX §6§l⚡                 §8║",
-            "§8║                                                            ║",
-            "§8║   §7Version §f" + getDescription().getVersion() + " §8| §7Zero-Impact Diagnostics    §8║",
-            "§8║                                                            ║",
-            "§8╚════════════════════════════════════════════════════════════╝",
-            "§7  Type §e/sg help §7for commands.",
+            "================================================================",
+            "",
+            "       S E R V E R   G U A R D   X",
+            "",
+            "       Version " + getDescription().getVersion() + " | Zero-Impact Diagnostics",
+            "",
+            "================================================================",
+            "  Type /sg help for commands.",
             ""
         };
         for (String line : lines) {
