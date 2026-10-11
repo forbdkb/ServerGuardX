@@ -1,6 +1,7 @@
 package com.serverguardx.commands;
 
 import com.serverguardx.ServerGuardX;
+import com.serverguardx.analyze.BaselineTracker;
 import com.serverguardx.analyze.LagAnalyzer;
 import com.serverguardx.core.Sampler;
 import com.serverguardx.core.TickProfiler;
@@ -32,19 +33,24 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 0) { help(s); return true; }
 
-        switch (args[0].toLowerCase()) {
-            case "help" -> help(s);
-            case "analyze", "scan" -> analyze(s);
-            case "stats", "info" -> stats(s);
-            case "ticks" -> ticks(s);
-            case "entities" -> entities(s);
-            case "memory", "ram" -> memory(s);
-            case "players" -> players(s);
-            case "plugins", "profiler" -> plugins(s);
-            case "gc" -> gc(s);
-            case "baseline" -> baseline(s);
-            case "log" -> log(s);
-            default -> help(s);
+        try {
+            switch (args[0].toLowerCase()) {
+                case "help" -> help(s);
+                case "analyze", "scan" -> analyze(s);
+                case "stats", "info" -> stats(s);
+                case "ticks" -> ticks(s);
+                case "entities" -> entities(s);
+                case "memory", "ram" -> memory(s);
+                case "players" -> players(s);
+                case "plugins", "profiler" -> plugins(s);
+                case "gc" -> gc(s);
+                case "baseline" -> baseline(s);
+                case "log" -> log(s);
+                default -> help(s);
+            }
+        } catch (Throwable t) {
+            s.sendMessage(ChatColor.RED + "Error: " + t.getMessage());
+            plugin.logs().error("Command error: " + t.getMessage());
         }
         return true;
     }
@@ -67,39 +73,47 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
     private void analyze(CommandSender s) {
         s.sendMessage(ChatColor.GOLD + "⏳ Running analysis...");
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            LagAnalyzer.AnalysisReport r = plugin.analyzer().deepScan();
+            try {
+                LagAnalyzer.AnalysisReport r = plugin.analyzer().deepScan();
 
-            s.sendMessage(ChatColor.GOLD + "╔══════ ANALYSIS ══════╗");
-            s.sendMessage(String.format("%sMSPT: %s%.2f %s| %sP95: %s%.2f %s| %sTPS: %s%.2f",
-                    ChatColor.YELLOW, ChatColor.WHITE, r.currentMspt,
-                    ChatColor.YELLOW, ChatColor.WHITE, r.p95Mspt,
-                    ChatColor.YELLOW, ChatColor.WHITE, r.tps));
+                s.sendMessage(ChatColor.GOLD + "╔══════ ANALYSIS ══════╗");
+                s.sendMessage(ChatColor.YELLOW + "MSPT: " + ChatColor.WHITE
+                        + String.format("%.2f", r.currentMspt)
+                        + ChatColor.YELLOW + " | P95: " + ChatColor.WHITE
+                        + String.format("%.2f", r.p95Mspt)
+                        + ChatColor.YELLOW + " | TPS: " + ChatColor.WHITE
+                        + String.format("%.2f", r.tps));
 
-            if (r.snapshot != null) {
-                s.sendMessage(String.format("%sPlayers: %s%d %s| %sRAM: %s%d%% %s| %sEnt: %s%d",
-                        ChatColor.YELLOW, ChatColor.WHITE, r.snapshot.playerCount,
-                        ChatColor.YELLOW, ChatColor.WHITE, r.ramPercent,
-                        ChatColor.YELLOW, ChatColor.WHITE, r.totalEntities));
-            }
-
-            s.sendMessage("");
-            s.sendMessage(ChatColor.RED + "▸ Causes:");
-            if (r.detectedCauses.isEmpty()) {
-                s.sendMessage(ChatColor.GREEN + "  ✓ No problems");
-            } else {
-                for (String c : r.detectedCauses) {
-                    s.sendMessage("  " + ChatColor.translateAlternateColorCodes('&', c));
+                if (r.snapshot != null) {
+                    s.sendMessage(ChatColor.YELLOW + "Players: " + ChatColor.WHITE
+                            + r.snapshot.playerCount
+                            + ChatColor.YELLOW + " | RAM: " + ChatColor.WHITE
+                            + r.ramPercent + "%"
+                            + ChatColor.YELLOW + " | Ent: " + ChatColor.WHITE
+                            + r.totalEntities);
                 }
-            }
 
-            if (!r.recommendations.isEmpty()) {
                 s.sendMessage("");
-                s.sendMessage(ChatColor.AQUA + "▸ Recommendations:");
-                for (String rec : r.recommendations) {
-                    s.sendMessage("  " + ChatColor.translateAlternateColorCodes('&', rec));
+                s.sendMessage(ChatColor.RED + "▸ Causes:");
+                if (r.detectedCauses.isEmpty()) {
+                    s.sendMessage(ChatColor.GREEN + "  ✓ No problems");
+                } else {
+                    for (String c : r.detectedCauses) {
+                        s.sendMessage("  " + ChatColor.translateAlternateColorCodes('&', c));
+                    }
                 }
+
+                if (!r.recommendations.isEmpty()) {
+                    s.sendMessage("");
+                    s.sendMessage(ChatColor.AQUA + "▸ Recommendations:");
+                    for (String rec : r.recommendations) {
+                        s.sendMessage("  " + ChatColor.translateAlternateColorCodes('&', rec));
+                    }
+                }
+                s.sendMessage(ChatColor.GOLD + "╚══════════════════════╝");
+            } catch (Throwable t) {
+                s.sendMessage(ChatColor.RED + "Analysis error: " + t.getMessage());
             }
-            s.sendMessage(ChatColor.GOLD + "╚══════════════════════╝");
         });
     }
 
@@ -108,18 +122,23 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
         Sampler.Snapshot snap = plugin.samples().getLatest();
 
         s.sendMessage(ChatColor.GOLD + "╔══ Quick Stats ══╗");
-        s.sendMessage(String.format("%sMSPT: %s%.2f %s| %sP95: %s%.2f",
-                ChatColor.YELLOW, ChatColor.WHITE, tp.getLastMspt(),
-                ChatColor.YELLOW, ChatColor.WHITE, tp.getP95Mspt()));
+        s.sendMessage(ChatColor.YELLOW + "MSPT: " + ChatColor.WHITE
+                + String.format("%.2f", tp.getLastMspt())
+                + ChatColor.YELLOW + " | P95: " + ChatColor.WHITE
+                + String.format("%.2f", tp.getP95Mspt()));
 
         if (snap != null) {
-            s.sendMessage(String.format("%sPlayers: %s%d %s(ping %dms)",
-                    ChatColor.YELLOW, ChatColor.WHITE, snap.playerCount, snap.avgPing));
-            s.sendMessage(String.format("%sRAM: %s%d/%d MB",
-                    ChatColor.YELLOW, ChatColor.WHITE, snap.heapUsed, snap.heapMax));
-            s.sendMessage(String.format("%sEntities: %s%d %s| %sChunks: %s%d",
-                    ChatColor.YELLOW, ChatColor.WHITE, snap.totalEntities,
-                    ChatColor.YELLOW, ChatColor.WHITE, snap.totalChunks));
+            s.sendMessage(ChatColor.YELLOW + "Players: " + ChatColor.WHITE
+                    + snap.playerCount
+                    + ChatColor.GRAY + " (ping " + snap.avgPing + "ms)");
+
+            s.sendMessage(ChatColor.YELLOW + "RAM: " + ChatColor.WHITE
+                    + snap.heapUsed + "/" + snap.heapMax + " MB");
+
+            s.sendMessage(ChatColor.YELLOW + "Entities: " + ChatColor.WHITE
+                    + snap.totalEntities
+                    + ChatColor.YELLOW + " | Chunks: " + ChatColor.WHITE
+                    + snap.totalChunks);
         }
         s.sendMessage(ChatColor.GOLD + "╚═════════════════╝");
     }
@@ -131,9 +150,9 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
             TickProfiler.TickData t = slow.get(i);
             ChatColor c = t.mspt > 100 ? ChatColor.RED :
                           t.mspt > 60 ? ChatColor.YELLOW : ChatColor.GREEN;
-            s.sendMessage(String.format("%s#%d %s%.2fms %s(tick %d)",
-                    ChatColor.GRAY, i + 1, c, t.mspt,
-                    ChatColor.DARK_GRAY, t.tick));
+            s.sendMessage(ChatColor.GRAY + "#" + (i + 1) + " " + c
+                    + String.format("%.2f", t.mspt) + "ms "
+                    + ChatColor.DARK_GRAY + "(tick " + t.tick + ")");
         }
         s.sendMessage(ChatColor.GOLD + "╚══════════════════╝");
     }
@@ -149,8 +168,7 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
         for (Map.Entry<String, Integer> e : snap.topEntities) {
             ChatColor c = e.getValue() > 500 ? ChatColor.RED :
                           e.getValue() > 200 ? ChatColor.YELLOW : ChatColor.GREEN;
-            s.sendMessage(String.format("  %s%-28s %s%d",
-                    ChatColor.GRAY, e.getKey(), c, e.getValue()));
+            s.sendMessage(ChatColor.GRAY + "  " + e.getKey() + " " + c + e.getValue());
         }
         s.sendMessage(ChatColor.GOLD + "╚═════════════════╝");
     }
@@ -159,15 +177,13 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
         Runtime rt = Runtime.getRuntime();
         long used = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
         long max = rt.maxMemory() / 1024 / 1024;
-        int pct = (int) (used * 100 / max);
+        int pct = max > 0 ? (int) (used * 100 / max) : 0;
 
         s.sendMessage(ChatColor.GOLD + "╔══ Memory ══╗");
-        s.sendMessage(String.format("%sUsed: %s%d MB %s| %sMax: %s%d MB",
-                ChatColor.YELLOW, ChatColor.WHITE, used,
-                ChatColor.YELLOW, ChatColor.WHITE, max));
+        s.sendMessage(ChatColor.YELLOW + "Used: " + ChatColor.WHITE + used + " MB"
+                + ChatColor.YELLOW + " | Max: " + ChatColor.WHITE + max + " MB");
         ChatColor c = pct > 90 ? ChatColor.RED : pct > 75 ? ChatColor.YELLOW : ChatColor.GREEN;
-        s.sendMessage(String.format("%sUsage: %s%d%%",
-                ChatColor.YELLOW, c, pct));
+        s.sendMessage(ChatColor.YELLOW + "Usage: " + c + pct + "%");
         s.sendMessage(ChatColor.GOLD + "╚════════════╝");
     }
 
@@ -178,16 +194,15 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
             int ping = p.getPing();
             ChatColor c = ping < 80 ? ChatColor.GREEN :
                           ping < 150 ? ChatColor.YELLOW : ChatColor.RED;
-            s.sendMessage(String.format("  %s%-18s %s%dms",
-                    ChatColor.GRAY, p.getName(), c, ping));
+            s.sendMessage(ChatColor.GRAY + "  " + p.getName() + " " + c + ping + "ms");
         }
         s.sendMessage(ChatColor.GOLD + "╚══════════════════╝");
     }
 
     private void plugins(CommandSender s) {
         s.sendMessage(ChatColor.GOLD + "╔══ Plugin List ══╗");
-        s.sendMessage(ChatColor.YELLOW + "Enabled: " + ChatColor.WHITE +
-                plugin.profiler().getEnabledPluginCount());
+        s.sendMessage(ChatColor.YELLOW + "Enabled: " + ChatColor.WHITE
+                + plugin.profiler().getEnabledPluginCount());
 
         List<PluginProfiler.PluginReport> reports = plugin.profiler().getReports();
         int shown = 0;
@@ -195,11 +210,10 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
             if (shown++ >= 20) break;
             ChatColor state = r.enabled ? ChatColor.GREEN : ChatColor.RED;
             String taskInfo = r.activeTasks >= 0 ? " (" + r.activeTasks + " tasks)" : "";
-            s.sendMessage(String.format("%s%s %s%-20s %sv%s%s",
-                    state, r.enabled ? "✓" : "✗",
-                    ChatColor.WHITE, r.name,
-                    ChatColor.DARK_GRAY, r.version,
-                    ChatColor.GRAY, taskInfo));
+            s.sendMessage(state + (r.enabled ? "✓ " : "✗ ")
+                    + ChatColor.WHITE + r.name
+                    + ChatColor.DARK_GRAY + " v" + r.version
+                    + ChatColor.GRAY + taskInfo);
         }
         s.sendMessage(ChatColor.GOLD + "╚═════════════════╝");
     }
@@ -216,27 +230,26 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
         s.sendMessage(ChatColor.GOLD + "╔══ Garbage Collector ══╗");
         s.sendMessage(ChatColor.YELLOW + "Type: " + ChatColor.WHITE + stats.gcType);
         s.sendMessage(ChatColor.YELLOW + "Health: " + hc + stats.health);
-        s.sendMessage(ChatColor.YELLOW + "Rate: " + ChatColor.WHITE +
-                String.format("%.1f/min", stats.gcPerMinute));
+        s.sendMessage(ChatColor.YELLOW + "Rate: " + ChatColor.WHITE
+                + String.format("%.1f", stats.gcPerMinute) + "/min");
         s.sendMessage(ChatColor.YELLOW + "Pauses: " + ChatColor.WHITE + stats.pausesLastMinute);
-        s.sendMessage(ChatColor.YELLOW + "Avg: " + ChatColor.WHITE +
-                String.format("%.1fms", stats.avgPauseMs));
+        s.sendMessage(ChatColor.YELLOW + "Avg: " + ChatColor.WHITE
+                + String.format("%.1f", stats.avgPauseMs) + "ms");
         s.sendMessage(ChatColor.YELLOW + "Max: " + ChatColor.WHITE + stats.maxPauseMs + "ms");
         s.sendMessage(ChatColor.GOLD + "╚═══════════════════════╝");
     }
 
     private void baseline(CommandSender s) {
         s.sendMessage(ChatColor.GOLD + "╔══ Baseline ══╗");
-        s.sendMessage(ChatColor.YELLOW + "Samples: " + ChatColor.WHITE +
-                plugin.baseline().getSamplesLearned());
-        s.sendMessage(ChatColor.YELLOW + "Baseline: " + ChatColor.WHITE +
-                String.format("%.2f MSPT", plugin.baseline().getBaselineMspt()));
+        s.sendMessage(ChatColor.YELLOW + "Samples: " + ChatColor.WHITE
+                + plugin.baseline().getSamplesLearned());
+        s.sendMessage(ChatColor.YELLOW + "Baseline: " + ChatColor.WHITE
+                + String.format("%.2f", plugin.baseline().getBaselineMspt()) + " MSPT");
 
         Sampler.Snapshot snap = plugin.samples().getLatest();
         if (snap != null) {
-            com.serverguardx.analyze.BaselineTracker.Deviation dev =
-                    plugin.baseline().checkDeviation(
-                            snap.mspt, snap.playerCount, snap.totalEntities);
+            BaselineTracker.Deviation dev = plugin.baseline().checkDeviation(
+                    snap.mspt, snap.playerCount, snap.totalEntities);
             ChatColor dc;
             switch (dev.severity) {
                 case "CRITICAL": dc = ChatColor.RED; break;
@@ -253,8 +266,8 @@ public class GuardCommand implements CommandExecutor, TabCompleter {
     }
 
     private void log(CommandSender s) {
-        s.sendMessage(ChatColor.YELLOW + "Log: " + ChatColor.WHITE +
-                plugin.logs().getFile().getAbsolutePath());
+        s.sendMessage(ChatColor.YELLOW + "Log: " + ChatColor.WHITE
+                + plugin.logs().getFile().getAbsolutePath());
     }
 
     @Override
